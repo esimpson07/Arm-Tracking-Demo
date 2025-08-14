@@ -2,9 +2,8 @@ import cv2
 import mediapipe as mp
 import math
 
-# =========================
-# Helper functions
-# =========================
+
+#methods
 def to_3d_point(landmark, w, h, scale_z=1.0):
     return (landmark.x*w, landmark.y*h, landmark.z*scale_z)
 
@@ -24,7 +23,7 @@ def dot_product(v1, v2):
     return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
 
 def angle_between_vectors(v1, v2):
-    """Returns angle in degrees between two 3D vectors"""
+    #returns angle in degrees for easy display
     mag1 = vector_magnitude(v1)
     mag2 = vector_magnitude(v2)
     if mag1 == 0 or mag2 == 0:
@@ -33,8 +32,9 @@ def angle_between_vectors(v1, v2):
     return math.degrees(math.acos(cos_angle))
 
 def hand_open_ratio(hand_landmarks, w, h):
-    tips = [4,8,12,16,20]
-    bases = [2,5,9,13,17]
+    #tells the distance between the tips of the fingers and hands
+    tips = [4,8,12,16,20] #landmark #s
+    bases = [2,5,9,13,17] #landmark #s
     total = 0
     for tip, base in zip(tips,bases):
         tip_pos = (hand_landmarks.landmark[tip].x*w, hand_landmarks.landmark[tip].y*h)
@@ -93,14 +93,14 @@ while cap.isOpened():
         right_vec = normalize(vector(left_shoulder, right_shoulder))
         up_vec = normalize(cross_product(forward, right_vec))
 
-        #Right arm vectors relative to shoulder
+        #Right arm vectors ONLY relative to shoulder
         shoulder = right_shoulder
         elbow = to_3d_point(lm[14], w, h)
         wrist = to_3d_point(lm[16], w, h)
         upper_arm = vector(shoulder, elbow)
         forearm = vector(elbow, wrist)
 
-        #Recorded angles for the robotic arms
+        #Recorded angles for the robot arms: will be send over serial
         shoulder_forward = angle_between_vectors(upper_arm, forward)
         shoulder_side    = angle_between_vectors(upper_arm, right_vec)
         elbow_angle      = angle_between_vectors(upper_arm, forearm)
@@ -108,7 +108,7 @@ while cap.isOpened():
         #Draw on image
         mp_drawing.draw_landmarks(frame, pose_results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-        #Display angles on screen
+        #Draw angles on the image
         cv2.putText(frame, f"Shoulder Forward: {int(shoulder_forward)}", (10,30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0,255,0),2)
         cv2.putText(frame, f"Shoulder Side: {int(shoulder_side)}", (10,60),
@@ -117,7 +117,7 @@ while cap.isOpened():
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0,255,0),2)
 
 
-    cv2.imshow("Arm & Hand Angles Relative to Shoulders", frame)
+    cv2.imshow("Angles", frame)
     if cv2.waitKey(1) & 0xFF == 27:
         break
 
