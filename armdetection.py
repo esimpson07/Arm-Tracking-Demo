@@ -215,25 +215,25 @@ while cap.isOpened():
             finger_tip_ids = [8, 12, 16, 20]
             avg_finger_tip_3d = average_point_3d(hand_landmarks.landmark, finger_tip_ids)
             avg_finger_tip_2d = average_point_2d(hand_landmarks.landmark, finger_tip_ids, w, h)
-            cv2.circle(frame, (int(avg_finger_tip_2d[0]), int(avg_finger_tip_2d[1])), 10, (0, 255, 0), -1)
+            cv2.circle(frame, (int(avg_finger_tip_2d[0]), int(avg_finger_tip_2d[1])), 5, (0, 255, 0), -1)
 
             #The base of the fingers: used as a reference to determine the state of the hand
             finger_base_ids = [5, 9, 13, 17]
             avg_finger_base_3d = average_point_3d(hand_landmarks.landmark, finger_base_ids)
             avg_finger_base_2d = average_point_2d(hand_landmarks.landmark, finger_base_ids, w, h)
-            cv2.circle(frame, (int(avg_finger_base_2d[0]), int(avg_finger_base_2d[1])), 10, (0, 255, 0), -1)
+            cv2.circle(frame, (int(avg_finger_base_2d[0]), int(avg_finger_base_2d[1])), 5, (0, 255, 0), -1)
             
             #The base of the palm: used to compare the distance of the two parts of the hand
             wrist_base = (hand_landmarks.landmark[0].x, hand_landmarks.landmark[0].y, hand_landmarks.landmark[0].z)
             tip_dist = distance_3d(wrist_base, avg_finger_tip_3d)
             base_dist = distance_3d(wrist_base, avg_finger_base_3d)
-            print("t:" + str(tip_dist))
-            print("b:" + str(base_dist))
-            cv2.circle(frame, (int(wrist_base[0] * w), int(wrist_base[1] * h)), 10, (0, 255, 0), -1)
-
+            cv2.circle(frame, (int(wrist_base[0] * w), int(wrist_base[1] * h)), 5, (0, 255, 0), -1)
+            
+            state = "Open" if tip_dist > base_dist else "Closed"
+            
+            cv2.putText(frame, f"Hand: {state}", (10, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,0), 2)
     
-        '''cv2.putText(frame, f"Hand: {state}", (10, 120),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,0,0), 2)'''
 
     cv2.imshow("Angles", frame)
     if cv2.waitKey(1) & 0xFF == 27:
