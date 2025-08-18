@@ -219,6 +219,7 @@ while cap.isOpened():
 
     # Hand detection
     if hands_results.multi_hand_landmarks:
+        hand = 0 #0 = left, 1 = right
         for hand_landmarks in hands_results.multi_hand_landmarks:
             mp_drawing.draw_landmarks(frame, hand_landmarks,
                                       mp_hands.HAND_CONNECTIONS)
@@ -272,12 +273,13 @@ while cap.isOpened():
             cv2.putText(
                 frame,
                 f"Hand: {state}",
-                (10, 120),
+                (10 + (140 * hand), 120),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
                 (255, 0, 0),
                 2,
             )
+            hand = 1
 
     cv2.imshow("Angles", frame)
     if cv2.waitKey(1) & 0xFF == 27:
