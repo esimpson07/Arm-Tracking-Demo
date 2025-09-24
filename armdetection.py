@@ -1,10 +1,38 @@
 import cv2
 import mediapipe as mp
 import math
+import argparse
 import numpy as np
-import serialmanager
+import serial
+
 """
 
+    USAGE:
+
+    READ THIS:
+
+    In order to run this program, you should probably run it from the Command Prompt or
+    the Terminal. The argument specifications are:
+
+    python armdetection.py --port COM1 --baudrate 115200
+
+    or running with the default baudrate (115200):
+
+    python armdetection.py --port COM1
+
+    or just running on the laptop without serial communication:
+
+    python armdetection.py
+
+
+
+    DEPENDENCIES:
+
+    pip install opencv-python
+    pip install mediapipe
+    pip install numpy
+    pip install serial
+    
     This program is made to be a program that detects the position of the arms and hands,
     and finds the angles between the different joints and saves them. Using the MediaPipe
     landmarks, the 3d points will be found and the angles between the landmarks will be
@@ -25,8 +53,44 @@ import serialmanager
 
 """
 
+class SerialHandler:
+    def __init__(self, port=None, baudrate=115200):
+        self.port = port
+        self.baudrate = baudrate
+        self.ser = None
+        self.connected = False
+        self.connect()
 
-# Helper methods
+    def connect(self):
+        if self.port is None:
+            print("[Serial] No COM port specified. Running in simulation mode.")
+            return
+
+        try:
+            self.ser = serial.Serial(self.port, self.baudrate, timeout=1)
+            self.connected = True
+            print(f"[Serial] Connected to {self.port} at {self.baudrate} baudrate.")
+        except serial.SerialException:
+            print(f"[Serial] Could not connect to {self.port}. Running in simulation mode.")
+
+    def send(self, message):
+        if self.connected and self.ser:
+            try:
+                self.ser.write((message + "\n").encode())
+            except serial.SerialException:
+                print("[Serial] Write failed. Switching to simulation mode.")
+                self.connected = False
+        else:
+            print(f"[Serial-Sim] {message}")
+
+    def close(self):
+        if self.connected and self.ser:
+            self.ser.close()
+            print("[Serial] Connection closed.")
+
+            
+
+# Helper methods for detection
 def to_3d_point(landmark, w, h, scale_z=1.0):
     return (landmark.x * w, landmark.y * h, landmark.z * scale_z)
 
@@ -85,6 +149,21 @@ def average_point_3d(landmarks, landmark_ids):
                        for i in landmark_ids])
     return np.mean(points, axis=0)
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Robotic Arm Serial Controller")
+    parser.add_argument(
+        "--port",
+        type=str,
+        default=None,
+        help="Serial port (e.g., COM7 on Windows or /dev/ttyUSB0 on Linux)."
+    )
+    parser.add_argument(
+        "--baudrate",
+        type=int,
+        default=115200,
+        help="Baud rate (default: 115200)."
+    )
+    return parser.parse_args()
 
 # init MediaPose positions and find estimates of body
 mp_pose = mp.solutions.pose
@@ -96,8 +175,9 @@ hands = mp_hands.Hands(max_num_hands=2,
                        min_detection_confidence=0.5,
                        min_tracking_confidence=0.5)
 
-# initialize serial
-#ser = serialmanager.SerialManager(port="COM7", baudrate=115200)
+# parse arguments and initialize serial
+args = parse_args()
+serial_handler = SerialHandler(port=args.port, baudrate=args.baudrate)
 
 # initialize video capture
 cap = cv2.VideoCapture(0)
@@ -269,7 +349,7 @@ while cap.isOpened():
             )
 
             state = "Open" if tip_dist > base_dist else "Closed"
-
+            print(tip_dist / base_dist)
             cv2.putText(
                 frame,
                 f"Hand: {state}",
@@ -281,6 +361,7 @@ while cap.isOpened():
             )
             hand = 1
 
+    serial_handler.send("YOUR_MESSAGE")
     cv2.imshow("Angles", frame)
     if cv2.waitKey(1) & 0xFF == 27:
         break
