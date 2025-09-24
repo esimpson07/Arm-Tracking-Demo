@@ -53,6 +53,7 @@ import serial
 
 """
 
+
 class SerialHandler:
     def __init__(self, port=None, baudrate=115200):
         self.port = port
@@ -71,7 +72,9 @@ class SerialHandler:
             self.connected = True
             print(f"[Serial] Connected to {self.port} at {self.baudrate} baudrate.")
         except serial.SerialException:
-            print(f"[Serial] Could not connect to {self.port}. Running in simulation mode.")
+            print(
+                f"[Serial] Could not connect to {self.port}. Running in simulation mode."
+            )
 
     def send(self, message):
         if self.connected and self.ser:
@@ -88,7 +91,6 @@ class SerialHandler:
             self.ser.close()
             print("[Serial] Connection closed.")
 
-            
 
 # Helper methods for detection
 def to_3d_point(landmark, w, h, scale_z=1.0):
@@ -100,7 +102,7 @@ def vector(a, b):
 
 
 def vector_magnitude(v):
-    return math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
+    return math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
 
 
 def normalize(v):
@@ -115,7 +117,7 @@ def dot_product(v1, v2):
 
 
 def angle_between_vectors(v1, v2):
-    # returns angle in degrees for easy display
+    # Returns angle in degrees for easy display
     mag1 = vector_magnitude(v1)
     mag2 = vector_magnitude(v2)
     if mag1 == 0 or mag2 == 0:
@@ -133,53 +135,80 @@ def cross_product(a, b):
 
 
 def distance_3d(p1, p2):
-    return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2 +
-                     (p1[2] - p2[2])**2)
+    return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2)
 
 
 def average_point_2d(landmarks, landmark_ids, image_width, image_height):
     points = np.array(
-        [[landmarks[i].x * image_width, landmarks[i].y * image_height]
-         for i in landmark_ids])
+        [
+            [landmarks[i].x * image_width, landmarks[i].y * image_height]
+            for i in landmark_ids
+        ]
+    )
     return np.mean(points, axis=0)
 
 
 def average_point_3d(landmarks, landmark_ids):
-    points = np.array([[landmarks[i].x, landmarks[i].y, landmarks[i].z]
-                       for i in landmark_ids])
+    points = np.array(
+        [[landmarks[i].x, landmarks[i].y, landmarks[i].z] for i in landmark_ids]
+    )
     return np.mean(points, axis=0)
 
+
+def format_arm_data(
+    left_shoulder_forward,
+    left_shoulder_side,
+    left_elbow_angle,
+    right_shoulder_forward,
+    right_shoulder_side,
+    right_elbow_angle,
+    hand_states,
+):
+    """
+    Combine arm joint angles + hand states into a single formatted string.
+    hand_states should be a dict: {"L": ratio, "R": ratio}
+    """
+    return (
+        f"LSF:{left_shoulder_forward:.1f},"
+        f"LSS:{left_shoulder_side:.1f},"
+        f"LE:{left_elbow_angle:.1f},"
+        f"LH:{hand_states['Left']},"
+        f"RSF:{right_shoulder_forward:.1f},"
+        f"RSS:{right_shoulder_side:.1f},"
+        f"RE:{right_elbow_angle:.1f},"
+        f"RH:{hand_states['Right']}"
+    )
+
+
 def parse_args():
-    parser = argparse.ArgumentParser(description="Robotic Arm Serial Controller")
+    parser = argparse.ArgumentParser(description="Arm Detection With Serial")
     parser.add_argument(
         "--port",
         type=str,
         default=None,
-        help="Serial port (e.g., COM7 on Windows or /dev/ttyUSB0 on Linux)."
+        help="Serial port (Ex. COM7 on Windows or /dev/ttyUSB0 on Linux).",
     )
     parser.add_argument(
-        "--baudrate",
-        type=int,
-        default=115200,
-        help="Baud rate (default: 115200)."
+        "--baudrate", type=int, default=115200, help="Baud rate (default: 115200)."
     )
     return parser.parse_args()
 
-# init MediaPose positions and find estimates of body
+
+# Init MediaPose positions and find estimates of body
 mp_pose = mp.solutions.pose
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
 pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-hands = mp_hands.Hands(max_num_hands=2,
-                       min_detection_confidence=0.5,
-                       min_tracking_confidence=0.5)
+hands = mp_hands.Hands(
+    max_num_hands=2, min_detection_confidence=0.5, min_tracking_confidence=0.5
+)
 
-# parse arguments and initialize serial
+# Parse arguments and initialize serial
 args = parse_args()
 serial_handler = SerialHandler(port=args.port, baudrate=args.baudrate)
 
-# initialize video capture
+# Initialize video capture
 cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
@@ -206,9 +235,9 @@ while cap.isOpened():
         )
 
         # Torso reference axes
-        forward = normalize(vector(shoulder_mid,
-                                   to_3d_point(lm[0], w,
-                                               h)))  # midpoint to nose
+        forward = normalize(
+            vector(shoulder_mid, to_3d_point(lm[0], w, h))
+        )  # Midpoint to nose
         left_vec = normalize(vector(right_shoulder, left_shoulder))
         right_vec = normalize(vector(left_shoulder, right_shoulder))
         up_vec = normalize(cross_product(forward, right_vec))
@@ -230,15 +259,14 @@ while cap.isOpened():
         left_shoulder_side = angle_between_vectors(left_upper_arm, left_vec)
         left_elbow_angle = angle_between_vectors(left_upper_arm, left_forearm)
 
-        right_shoulder_forward = angle_between_vectors(right_upper_arm,
-                                                       forward)
+        right_shoulder_forward = angle_between_vectors(right_upper_arm, forward)
         right_shoulder_side = angle_between_vectors(right_upper_arm, right_vec)
-        right_elbow_angle = angle_between_vectors(right_upper_arm,
-                                                  right_forearm)
+        right_elbow_angle = angle_between_vectors(right_upper_arm, right_forearm)
 
         # Draw on image
-        mp_drawing.draw_landmarks(frame, pose_results.pose_landmarks,
-                                  mp_pose.POSE_CONNECTIONS)
+        mp_drawing.draw_landmarks(
+            frame, pose_results.pose_landmarks, mp_pose.POSE_CONNECTIONS
+        )
 
         # Draw angles on the image
         cv2.putText(
@@ -298,70 +326,109 @@ while cap.isOpened():
         )
 
     # Hand detection
+    hand_states = {
+        "Left": 1.8,  # will store the open/closed ratio (0.6–1.8)
+        "Right": 1.8,
+    }
+
     if hands_results.multi_hand_landmarks:
-        hand = 0 #0 = left, 1 = right
         for hand_landmarks in hands_results.multi_hand_landmarks:
-            mp_drawing.draw_landmarks(frame, hand_landmarks,
-                                      mp_hands.HAND_CONNECTIONS)
+            for hand_landmarks, hand_label in zip(
+                hands_results.multi_hand_landmarks, hands_results.multi_handedness
+            ):
+                label = hand_label.classification[0].label  # "Left" or "Right"
+                mp_drawing.draw_landmarks(
+                    frame, hand_landmarks, mp_hands.HAND_CONNECTIONS
+                )
 
-            # The tip of the fingers: used to check if the hand is open or closed
-            finger_tip_ids = [8, 12, 16, 20]
-            avg_finger_tip_3d = average_point_3d(hand_landmarks.landmark,
-                                                 finger_tip_ids)
-            avg_finger_tip_2d = average_point_2d(hand_landmarks.landmark,
-                                                 finger_tip_ids, w, h)
-            cv2.circle(
-                frame,
-                (int(avg_finger_tip_2d[0]), int(avg_finger_tip_2d[1])),
-                5,
-                (0, 255, 0),
-                -1,
-            )
+                # The tip of the fingers: used to check if the hand is open or closed
+                finger_tip_ids = [8, 12, 16, 20]
+                avg_finger_tip_3d = average_point_3d(
+                    hand_landmarks.landmark, finger_tip_ids
+                )
+                avg_finger_tip_2d = average_point_2d(
+                    hand_landmarks.landmark, finger_tip_ids, w, h
+                )
+                cv2.circle(
+                    frame,
+                    (int(avg_finger_tip_2d[0]), int(avg_finger_tip_2d[1])),
+                    5,
+                    (0, 255, 0),
+                    -1,
+                )
 
-            # The base of the fingers: used as a reference to determine the state of the hand
-            finger_base_ids = [5, 9, 13, 17]
-            avg_finger_base_3d = average_point_3d(hand_landmarks.landmark,
-                                                  finger_base_ids)
-            avg_finger_base_2d = average_point_2d(hand_landmarks.landmark,
-                                                  finger_base_ids, w, h)
-            cv2.circle(
-                frame,
-                (int(avg_finger_base_2d[0]), int(avg_finger_base_2d[1])),
-                5,
-                (0, 255, 0),
-                -1,
-            )
+                # The base of the fingers: used as a reference to determine the state of the hand
+                finger_base_ids = [5, 9, 13, 17]
+                avg_finger_base_3d = average_point_3d(
+                    hand_landmarks.landmark, finger_base_ids
+                )
+                avg_finger_base_2d = average_point_2d(
+                    hand_landmarks.landmark, finger_base_ids, w, h
+                )
+                cv2.circle(
+                    frame,
+                    (int(avg_finger_base_2d[0]), int(avg_finger_base_2d[1])),
+                    5,
+                    (0, 255, 0),
+                    -1,
+                )
 
-            # The base of the palm: used to compare the distance of the two parts of the hand
-            wrist_base = (
-                hand_landmarks.landmark[0].x,
-                hand_landmarks.landmark[0].y,
-                hand_landmarks.landmark[0].z,
-            )
-            tip_dist = distance_3d(wrist_base, avg_finger_tip_3d)
-            base_dist = distance_3d(wrist_base, avg_finger_base_3d)
-            cv2.circle(
-                frame,
-                (int(wrist_base[0] * w), int(wrist_base[1] * h)),
-                5,
-                (0, 255, 0),
-                -1,
-            )
+                # The base of the palm: used to compare the distance of the two parts of the hand
+                wrist_base = (
+                    hand_landmarks.landmark[0].x,
+                    hand_landmarks.landmark[0].y,
+                    hand_landmarks.landmark[0].z,
+                )
+                tip_dist = distance_3d(wrist_base, avg_finger_tip_3d)
+                base_dist = distance_3d(wrist_base, avg_finger_base_3d)
+                cv2.circle(
+                    frame,
+                    (int(wrist_base[0] * w), int(wrist_base[1] * h)),
+                    5,
+                    (0, 255, 0),
+                    -1,
+                )
 
-            state = "Open" if tip_dist > base_dist else "Closed"
-            print(tip_dist / base_dist)
-            cv2.putText(
-                frame,
-                f"Hand: {state}",
-                (10 + (140 * hand), 120),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (255, 0, 0),
-                2,
-            )
-            hand = 1
+                raw_ratio = tip_dist / base_dist
+                clamped_ratio = min(max(raw_ratio, 0.6), 1.8)
+                open_ratio = f"{clamped_ratio:4.2f}"
 
-    serial_handler.send("YOUR_MESSAGE")
+                state = "Open" if raw_ratio >= 1 else "Closed"
+                print(open_ratio)
+
+                hand_states[label] = open_ratio
+                if label == "Left":
+                    cv2.putText(
+                        frame,
+                        f"LH: {open_ratio}",
+                        (10, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (255, 0, 0),
+                        2,
+                    )
+                elif label == "Right":
+                    cv2.putText(
+                        frame,
+                        f"RH: {open_ratio}",
+                        (150, 120),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (255, 0, 0),
+                        2,
+                    )
+
+    message = format_arm_data(
+        left_shoulder_forward,
+        left_shoulder_side,
+        left_elbow_angle,
+        right_shoulder_forward,
+        right_shoulder_side,
+        right_elbow_angle,
+        hand_states,
+    )
+
+    serial_handler.send(message)
     cv2.imshow("Angles", frame)
     if cv2.waitKey(1) & 0xFF == 27:
         break
