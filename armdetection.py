@@ -7,9 +7,11 @@ import serial
 
 """
 
-    USAGE:
+    Find more about this project on my github @ esimpson07
 
-    READ THIS:
+    or at https://github.com/esimpson07/Arm-Tracking-Demo/blob/main/README.md
+
+    USAGE:
 
     In order to run this program, you should probably run it from the Command Prompt or
     the Terminal. The argument specifications are:
@@ -26,12 +28,19 @@ import serial
 
 
 
+    This program can run independently of the robotic hands, but for the demonstration
+    it is necessary to have the 
+
+
+
     DEPENDENCIES:
 
     pip install opencv-python
     pip install mediapipe
     pip install numpy
     pip install serial
+
+    
     
     This program is made to be a program that detects the position of the arms and hands,
     and finds the angles between the different joints and saves them. Using the MediaPipe
@@ -394,7 +403,6 @@ while cap.isOpened():
                 open_ratio = f"{clamped_ratio:4.2f}"
 
                 state = "Open" if raw_ratio >= 1 else "Closed"
-                print(open_ratio)
 
                 hand_states[label] = open_ratio
                 if label == "Left":
