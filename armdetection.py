@@ -77,7 +77,7 @@ class SerialHandler:
             return
 
         try:
-            self.ser = serial.Serial(self.port, self.baudrate, timeout=1)
+            self.ser = serial.Serial(self.port, self.baudrate, timeout=1, write_timeout=0.02)
             self.connected = True
             print(f"[Serial] Connected to {self.port} at {self.baudrate} baudrate.")
         except serial.SerialException:
@@ -178,14 +178,14 @@ def format_arm_data(
     hand_states should be a dict: {"L": ratio, "R": ratio}
     """
     return (
-        f"LSF:{left_shoulder_forward:.1f},"
-        f"LSS:{left_shoulder_side:.1f},"
-        f"LE:{left_elbow_angle:.1f},"
-        f"LH:{hand_states['Left']},"
-        f"RSF:{right_shoulder_forward:.1f},"
-        f"RSS:{right_shoulder_side:.1f},"
-        f"RE:{right_elbow_angle:.1f},"
-        f"RH:{hand_states['Right']}"
+        f"S0:{left_shoulder_forward:.1f};"
+        f"S1:{left_shoulder_side:.1f};"
+        f"S2:{left_elbow_angle:.1f};"
+        f"S3:{hand_states['Left']};"
+        f"S4:{right_shoulder_forward:.1f};"
+        f"S5:{right_shoulder_side:.1f};"
+        f"S6:{right_elbow_angle:.1f};"
+        f"S7:{hand_states['Right']};"
     )
 
 
@@ -213,6 +213,20 @@ hands = mp_hands.Hands(
     max_num_hands=2, min_detection_confidence=0.5, min_tracking_confidence=0.5
 )
 
+left_shoulder_forward = 90.0
+left_shoulder_side = 90.0
+left_elbow_angle = 90.0
+
+right_shoulder_forward = 90.0
+right_shoulder_side = 90.0
+right_elbow_angle = 90.0
+
+# Default hand open/closed ratios (midpoint)
+hand_states = {
+    "Left": "1.00",   # string formatted like later calculations
+    "Right": "1.00"
+}
+
 # Parse arguments and initialize serial
 args = parse_args()
 serial_handler = SerialHandler(port=args.port, baudrate=args.baudrate)
@@ -232,6 +246,8 @@ while cap.isOpened():
     hands_results = hands.process(rgb_frame)
 
     if pose_results.pose_landmarks:
+        print("in pose loop")
+
         lm = pose_results.pose_landmarks.landmark
 
         # Shoulder points
@@ -336,15 +352,20 @@ while cap.isOpened():
 
     # Hand detection
     hand_states = {
-        "Left": 1.8,  # will store the open/closed ratio (0.6–1.8)
-        "Right": 1.8,
+        "Left": 180,  # will store the open/closed ratio (0 - 180) being 0.6 - 1.8
+        "Right": 180,
     }
 
     if hands_results.multi_hand_landmarks:
+        print("in hand loop 1")
+
         for hand_landmarks in hands_results.multi_hand_landmarks:
+            print("in hand loop 2")
             for hand_landmarks, hand_label in zip(
                 hands_results.multi_hand_landmarks, hands_results.multi_handedness
             ):
+
+                print("in hand loop 3")
                 label = hand_label.classification[0].label  # "Left" or "Right"
                 mp_drawing.draw_landmarks(
                     frame, hand_landmarks, mp_hands.HAND_CONNECTIONS
@@ -400,7 +421,9 @@ while cap.isOpened():
 
                 raw_ratio = tip_dist / base_dist
                 clamped_ratio = min(max(raw_ratio, 0.6), 1.8)
-                open_ratio = f"{clamped_ratio:4.2f}"
+                zeroed_ratio = clamped_ratio - 0.6
+                scaled_ratio = zeroed_ratio * 150
+                open_ratio = f"{scaled_ratio:4.2f}"
 
                 state = "Open" if raw_ratio >= 1 else "Closed"
 
@@ -435,8 +458,12 @@ while cap.isOpened():
         right_elbow_angle,
         hand_states,
     )
+    
+    print("sending serial message")
+
 
     serial_handler.send(message)
+    print("sent serial message")
     cv2.imshow("Angles", frame)
     if cv2.waitKey(1) & 0xFF == 27:
         break
