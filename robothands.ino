@@ -10,11 +10,11 @@ Servo servos[NUM_SERVOS];
 const int servoPins[NUM_SERVOS] = {12, 11, 10, 9, 4, 5, 6, 7};
 
 // Reverse direction flags (true = reversed)
-bool servoReverse[NUM_SERVOS] = {true, true, false, false, false, true, true, false};
+bool servoReverse[NUM_SERVOS] = {false, false, true, false, true, false, false, false};
 
 // Minimum and maximum limits for each servo
-int servoMin[NUM_SERVOS] = {0, 0, 0, 0, 0, 0, 0, 0};
-int servoMax[NUM_SERVOS] = {180, 180, 180, 180, 180, 180, 180, 180};
+int servoMin[NUM_SERVOS] = {0, 0, 90, 95, 0, 0, 90, 95};
+int servoMax[NUM_SERVOS] = {180, 180, 180, 163, 180, 180, 180, 163};
 
 // Input buffer
 String inputString = "";
@@ -27,10 +27,6 @@ void setup() {
     servos[i].attach(servoPins[i]);
     servos[i].write(90); // Neutral default
   }
-
-  Serial.println("Servo Controller Ready!");
-  Serial.println("Send commands: S<index>:<angle> (multiple allowed)");
-  Serial.println("Example: S0:120 S3:45 S7:90");
 }
 
 void loop() {
@@ -54,7 +50,7 @@ void processCommandLine(String line) {
   // Split commands by space
   int start = 0;
   while (start < line.length()) {
-    int spaceIndex = line.indexOf(' ', start);
+    int spaceIndex = line.indexOf(';', start);
     if (spaceIndex == -1) spaceIndex = line.length();
 
     String command = line.substring(start, spaceIndex);
@@ -75,6 +71,9 @@ void processCommand(String command) {
       int angle = command.substring(colonIndex + 1).toInt();
 
       if (servoIndex >= 0 && servoIndex < NUM_SERVOS) {
+        if(servoIndex == 2 || servoIndex == 6) {
+          angle = 90 + angle;
+        }
         // Apply limits
         if (angle < servoMin[servoIndex]) angle = servoMin[servoIndex];
         if (angle > servoMax[servoIndex]) angle = servoMax[servoIndex];
@@ -85,16 +84,7 @@ void processCommand(String command) {
         }
 
         servos[servoIndex].write(angle);
-
-        Serial.print("Servo ");
-        Serial.print(servoIndex);
-        Serial.print(" -> ");
-        Serial.println(angle);
-      } else {
-        Serial.println("Invalid servo index.");
       }
-    } else {
-      Serial.println("Invalid format. Use S<index>:<angle>");
     }
   }
 }
